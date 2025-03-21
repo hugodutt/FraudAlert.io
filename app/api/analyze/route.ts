@@ -1,6 +1,37 @@
+// Manter a lista existente de marcas conhecidas
+const knownBrands = [
+  // Suplementos e Nutrição Esportiva
+  'growth supplements', 'growth', 'growthsuplementos', 'max titanium', 'maxtitanium',
+  'integral medica', 'integralmedica', 'black skull', 'blackskull', 'darkness',
+  'probiotica', 'athletica', 'optimum nutrition', 'dymatize', 'universal',
+  'muscletech', 'bpi sports', 'gaspari', 'bsn', 'nutrata',
+  
+  // Varejo e Supermercados
+  'atacadao', 'atacadão', 'carrefour', 'assai', 'assaí', 'makro', 'sams club', 
+  'fort atacadista', 'tenda atacado', 'maxxi atacado', 'villefort',
+  
+  // E-commerce e Marketplaces
+  'netshoes', 'amazon', 'mercado livre', 'americanas', 'magalu', 'magazine luiza',
+  'shopee', 'aliexpress', 'shein', 'casas bahia', 'submarino', 'centauro', 'dafiti',
+  
+  // Esportes
+  'nike', 'adidas', 'puma', 'under armour', 'reebok', 'mizuno', 'asics', 
+  'new balance', 'olympikus', 'fila', 'decathlon',
+  
+  // Bancos e Fintech
+  'nubank', 'itau', 'bradesco', 'santander', 'banco do brasil', 'caixa',
+  'inter', 'c6', 'next', 'picpay', 'will bank',
+  
+  // Beleza e Cuidados Pessoais
+  'natura', 'boticario', 'o boticario', 'avon', 'mary kay', 'mac cosmetics',
+  'clinique', 'lancome', 'la roche posay', 'vichy', 'cerave', 'simple organic',
+  'vult', 'ruby rose', 'mari maria', 'quem disse berenice'
+];
+
 import { NextResponse } from 'next/server';
 import { extractDomain } from '@/utils/url';
 import OpenAI from 'openai';
+import axios from 'axios';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -20,83 +51,93 @@ Title: ${htmlContent}
 Full Content Preview (first 2000 chars): ${htmlContent.slice(0, 2000)}
 Potential Brands Found: ${potentialBrands.join(', ')}
 
-Consider the following patterns when analyzing:
+IMPORTANT BRAND DETECTION RULES:
 1. Domain Analysis:
-   - Look for brand names or variations in the domain
-   - Check for common phishing keywords (e.g., 'promo', 'secure', 'login', 'account', 'verify')
-   - Identify regional/language indicators (e.g., '/Es/', '/Pt/', '/En/')
-   - Look for brand-specific terms in URL paths
+   - Look for brand parts in domain (e.g., "atca" = "Atacadão")
+   - Check common variations:
+     * With/without accents (atacadao/atacadão)
+     * Abbreviated forms (atca/atacad)
+     * Common misspellings
+   - Examples:
+     * atca -> Atacadão
+     * renovabe -> Renova Be
+     * bbr -> Banco do Brasil
+     * growth -> Growth Supplements
 
-2. Brand-Specific Patterns:
-   - Airlines:
-     * Brands: LATAM, GOL, Azul, Emirates, American Airlines
-     * Keywords: miles, booking, rewards, passagens, voos, milhas, pontos
-     * URL patterns: 'fly', 'airlines', 'travel', 'reservas'
+2. Content Analysis:
+   - Look for brand mentions in:
+     * Page title and headers
+     * Image names and alt text
+     * Product descriptions
+     * Copyright notices
+     * Contact information
+     * Company legal information (CNPJ, Razão Social)
+     * Customer service email domains
+   - Consider partial matches and variations
+   - Check for sector-specific terms
 
-   - Banks & Financial:
-     * Brands: Itau, Bradesco, Santander, Banco do Brasil, Caixa, Nubank, Inter
-     * Keywords: conta, banco, banking, seguro, investimento, pix, cartao
-     * URL patterns: 'banking', 'secure', 'conta', 'acesso', 'portal'
+3. Brand Knowledge Base:
+   A. Suplementos e Nutrição Esportiva:
+   - Premium Nacional:
+     * Growth Supplements (growth, growthsuplementos)
+     * Max Titanium (maxtitanium, max)
+     * Integral Médica (integralmedica)
+     * BlackSkull (blackskull, bskull)
+   - Premium Internacional:
+     * Optimum Nutrition (on, optimum)
+     * Dymatize (dymatize, elite)
+   - Intermediárias:
+     * Probiótica (probiotica)
+     * Athletica (athletica)
+     * Darkness
+   
+   B. Cosméticos e Beleza:
+   - Premium Internacional: La Roche, Vichy, Clinique, MAC
+   - Premium Nacional: Natura, O Boticário
+   - Entrada: Vult, Ruby Rose, Mari Maria
 
-   - E-commerce:
-     * Brands: Americanas, Magazine Luiza, Amazon, Mercado Livre, Shopee, AliExpress
-     * Keywords: shop, store, compras, ofertas, produtos, frete
-     * URL patterns: 'shop', 'store', 'promo', 'deals', 'black-friday'
+   C. Varejo e Supermercados:
+   - Atacadistas: Atacadão, Assaí, Makro
+   - Hipermercados: Carrefour, Extra, Big
+   - Supermercados: Pão de Açúcar, Dia
 
-   - Social Media:
-     * Brands: Facebook, Instagram, WhatsApp, LinkedIn, X/Twitter
-     * Keywords: social, connect, login, profile, messages
-     * URL patterns: 'login', 'account', 'secure', 'verify'
+4. Sector-Specific Indicators:
+   A. Suplementos:
+   - Produtos: Whey Protein, Creatina, BCAA, Pré-treino
+   - Termos: Suplementos, Nutrition, Supplements
+   - Certificações: ANVISA, GMP, FDA
+   - Emails: sac@marca.com.br, vendas@marca.com.br
 
-   - Streaming:
-     * Brands: Netflix, Disney+, Amazon Prime, Globoplay, HBO
-     * Keywords: streaming, watch, shows, movies, series
-     * URL patterns: 'watch', 'account', 'billing'
+   B. Cosméticos:
+   - Produtos: Perfumes, Maquiagem, Cremes
+   - Termos: Beleza, Beauty, Cosméticos
+   - Certificações: ANVISA, Cruelty-free
+   
+   C. Varejo:
+   - Produtos: Alimentos, Bebidas, Limpeza
+   - Termos: Atacado, Varejo, Mercado
+   - Certificações: ABRAS, Procon
 
-   - Delivery:
-     * Brands: iFood, Rappi, Uber Eats, 99 Food
-     * Keywords: delivery, pedidos, entrega, restaurantes
-     * URL patterns: 'food', 'delivery', 'order'
+5. Brand Confidence Scoring:
+   - 0.9+ : Multiple strong indicators (company info, products, domain)
+   - 0.8+ : Strong sector alignment with brand mentions
+   - 0.7+ : Clear brand reference with some variations
+   - 0.6+ : Partial match with sector alignment
+   - 0.5+ : Weak but identifiable brand signals
 
-   - Telecommunications:
-     * Brands: Vivo, Claro, Tim, Oi
-     * Keywords: celular, internet, planos, recarga
-     * URL patterns: 'mobile', 'plans', 'recharge'
+CRITICAL: For this analysis, pay special attention to:
+1. Company legal information and customer service emails
+2. Sector-specific product catalogs
+3. Brand variations and abbreviations
+4. Context from product categories and descriptions
 
-3. Content Analysis:
-   - Check for copied logos and branding elements
-   - Look for login forms and security seals
-   - Analyze color schemes matching known brands
-   - Check for trademark symbols (®, ™)
-   - Identify official-looking but suspicious URLs
-   - Look for mixed branding (elements from multiple brands)
-   - Check for poor translations or mixed languages
-   - Analyze image URLs and resources for brand references
-
-4. Common Phishing Indicators:
-   - Mixed language usage (e.g., Portuguese + English)
-   - Urgency words (promocao, oferta, limitado, urgente)
-   - Security-related terms (verify, secure, validate)
-   - Unusual domain combinations (brand + generic terms)
-   - Recent domain registration dates
-   - Suspicious TLDs (.xyz, .online, .site, etc.)
-   - Presence of payment/credit card forms
-   - Request for sensitive information
-
-Based on these factors:
-1. Identify which brand/company is being targeted
-2. Provide a confidence score (0.0 to 1.0) for this identification
-3. Consider both the domain name and HTML content patterns
-4. If multiple brands are referenced, identify the primary target
-5. Explain the reasoning behind the identification
-
-Respond in JSON format:
+Based on these rules, analyze the provided information and respond in this JSON format:
 {
-  "brand": "string or null",
-  "confidence": number,
-  "reasoning": "string explaining the identification",
-  "category": "string (e.g., 'Airlines', 'Banking', 'E-commerce')",
-  "indicators": ["list of specific phishing indicators found"]
+  "brand": "string (use the official brand name, NEVER 'Unknown')",
+  "confidence": number (0.0 to 1.0),
+  "reasoning": "string (detailed explanation)",
+  "category": "string (sector category)",
+  "indicators": ["list of specific indicators found"]
 }`;
 
     const completion = await openai.chat.completions.create({
@@ -104,7 +145,7 @@ Respond in JSON format:
       messages: [
         {
           role: "system",
-          content: "You are a phishing detection expert specialized in identifying targeted brands from website content and URLs. You have extensive knowledge of common phishing patterns, brand impersonation techniques, and social engineering tactics across multiple industries. Focus on identifying the targeted brand with high precision and explaining your reasoning clearly."
+          content: "You are a phishing detection expert specialized in identifying targeted brands from website content and URLs. You must identify brands even from partial matches or variations. For example, 'atca' strongly indicates 'Atacadão', 'bbr' indicates 'Banco do Brasil', 'growth' indicates 'Growth Supplements'. Always look for these patterns and variations, especially in Brazilian retail and supplement sectors. Never return 'Unknown' if there are any brand indicators present."
         },
         {
           role: "user",
@@ -150,8 +191,29 @@ async function analyzeHtmlContent(url: string): Promise<{
   potentialBrands: string[];
 }> {
   try {
-    const response = await fetch(url);
-    const html = await response.text();
+    const response = await axios.get(url, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0'
+      },
+      validateStatus: (status) => status < 400
+    });
+    
+    if (typeof response.data !== 'string') {
+      throw new Error('Expected HTML string but got different response type');
+    }
+    
+    const html = response.data;
     
     // Análise básica do HTML
     const hasLoginForm = /type=["']password["']/i.test(html) || /login/i.test(html);
@@ -167,15 +229,273 @@ async function analyzeHtmlContent(url: string): Promise<{
 
     // Extrair texto relevante do HTML
     const textContent = html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove scripts
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '') // Remove CSS
-      .replace(/<[^>]+>/g, ' ') // Remove HTML tags
-      .replace(/\s+/g, ' ') // Normalize whitespace
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
 
     // Buscar por padrões específicos que podem indicar marcas
     const potentialBrands: string[] = [];
     
+    // Função auxiliar para contar ocorrências de uma palavra
+    function countOccurrences(text: string, word: string): number {
+      const regex = new RegExp(`\\b${word}\\b`, 'gi');
+      return (text.match(regex) || []).length;
+    }
+
+    // Função para limpar e extrair potencial marca do domínio
+    function cleanDomainForBrandAnalysis(domain: string): string[] {
+      // Remover www. e extensões comuns
+      const cleanDomain = domain
+        .replace(/^www\./i, '')
+        .replace(/\.(com|net|org|io|br|shop|store|app|site|online|top)$/i, '');
+      
+      // Separar por hífen, ponto ou números
+      const parts = cleanDomain.split(/[-_.\d]/);
+      
+      // Filtrar partes muito curtas ou palavras comuns
+      const commonPrefixes = ['my', 'the', 'loja', 'shop', 'store', 'app', 'site', 'br'];
+      return parts
+        .filter(part => part.length > 2)
+        .filter(part => !commonPrefixes.includes(part.toLowerCase()))
+        .map(part => {
+          // Verificar se a parte contém uma marca conhecida
+          const lowerPart = part.toLowerCase();
+          const matchingBrand = knownBrands.find(brand => 
+            lowerPart.includes(brand.toLowerCase().replace(/[áãâàäç]/g, a => 
+              a.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            ))
+          );
+          return matchingBrand || part;
+        });
+    }
+
+    // Função para pontuar potenciais marcas
+    function scorePotentialBrand(brand: string, html: string, domain: string): number {
+      let score = 0;
+      const lowerBrand = brand.toLowerCase();
+      const normalizedBrand = lowerBrand.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      
+      // Pontuação por menções em elementos críticos
+      const criticalElements = [
+        // Copyright e informações legais
+        new RegExp(`copyright.*${normalizedBrand}.*ltda`, 'i'),
+        new RegExp(`${normalizedBrand}.*produtos.*ltda`, 'i'),
+        new RegExp(`cnpj.*${normalizedBrand}`, 'i'),
+        
+        // Email corporativo
+        new RegExp(`@${normalizedBrand.replace(/\s+/g, '')}`, 'i'),
+        new RegExp(`sac@${normalizedBrand.replace(/\s+/g, '')}`, 'i'),
+        
+        // Nome completo da empresa
+        new RegExp(`${normalizedBrand}.*supplements`, 'i'),
+        new RegExp(`${normalizedBrand}.*suplementos`, 'i'),
+      ];
+
+      criticalElements.forEach(regex => {
+        if (regex.test(html)) {
+          score += 25; // Peso muito alto para informações corporativas
+        }
+      });
+
+      type SectorProducts = {
+        [key: string]: string[];
+      };
+
+      // Pontuação por produtos específicos do setor
+      const sectorProducts: SectorProducts = {
+        'suplementos': [
+          'whey protein', 'creatina', 'pré-treino', 'bcaa', 'glutamina',
+          'multivitamínico', 'termogênico', 'proteína', 'massa', 'weight'
+        ],
+        'cosmeticos': [
+          'perfume', 'maquiagem', 'batom', 'shampoo', 'hidratante',
+          'creme', 'protetor solar', 'desodorante', 'sabonete'
+        ],
+        'farmacia': [
+          'medicamento', 'remédio', 'vitamina', 'suplemento', 'comprimido',
+          'cápsula', 'pomada', 'xarope', 'spray'
+        ]
+      };
+
+      // Contar produtos específicos do setor
+      let sectorMatches = 0;
+      let dominantSector = '';
+      for (const [sector, products] of Object.entries(sectorProducts)) {
+        const sectorCount = products.filter(product => 
+          html.toLowerCase().includes(product)
+        ).length;
+        
+        if (sectorCount > sectorMatches) {
+          sectorMatches = sectorCount;
+          dominantSector = sector;
+        }
+      }
+
+      // Adicionar pontuação baseada no setor dominante
+      score += sectorMatches * 5;
+
+      // Verificar se a marca corresponde ao setor dominante
+      if (dominantSector === 'suplementos' && 
+          (lowerBrand.includes('suplementos') || lowerBrand.includes('nutrition') || 
+           lowerBrand.includes('growth') || lowerBrand.includes('max'))) {
+        score += 15;
+      } else if (dominantSector === 'cosmeticos' && 
+                (lowerBrand.includes('cosmet') || lowerBrand.includes('beauty') || 
+                 lowerBrand.includes('natura') || lowerBrand.includes('boticario'))) {
+        score += 15;
+      }
+
+      // Pontuação por elementos de e-commerce específicos do setor
+      const sectorElements: SectorProducts = {
+        'suplementos': ['whey', 'protein', 'creatina', 'treino', 'academia', 'fitness'],
+        'cosmeticos': ['beleza', 'makeup', 'cosmet', 'perfum', 'dermocosmet'],
+        'farmacia': ['farma', 'medicament', 'saude', 'drogaria', 'manipul']
+      };
+
+      if (dominantSector in sectorElements) {
+        const sectorTerms = sectorElements[dominantSector];
+        const termMatches = sectorTerms.filter((term: string) => 
+          html.toLowerCase().includes(term)
+        ).length;
+        score += termMatches * 3;
+      }
+
+      // Pontuação baseada em ocorrências no texto
+      const occurrences = countOccurrences(html, brand) + 
+                         countOccurrences(html, normalizedBrand);
+      score += occurrences * 2;
+      
+      // Pontuação por posição em títulos de produtos
+      const productTitles = html.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/gi) || [];
+      let titleStartCount = 0;
+      
+      productTitles.forEach(title => {
+        const cleanTitle = title.replace(/<[^>]+>/g, '').trim().toLowerCase();
+        const normalizedTitle = cleanTitle.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        
+        if (cleanTitle.startsWith(lowerBrand) || normalizedTitle.startsWith(normalizedBrand)) {
+          score += 5;
+          titleStartCount++;
+        }
+        if (cleanTitle.includes(lowerBrand) || normalizedTitle.includes(normalizedBrand)) {
+          score += 2;
+        }
+      });
+      
+      // Bônus extra se aparecer no início de vários títulos
+      if (titleStartCount >= 3) score += 15;
+      
+      // Pontuação por presença no domínio (após limpeza)
+      const domainParts = cleanDomainForBrandAnalysis(domain);
+      if (domainParts.some(part => 
+        part.toLowerCase().includes(normalizedBrand) || 
+        part.toLowerCase().includes(lowerBrand)
+      )) {
+        score += 10;
+      }
+      
+      // Pontuação por presença em elementos importantes
+      const brandVariations = [
+        lowerBrand,
+        normalizedBrand,
+        lowerBrand.replace(/[aeiou]/g, ''),
+        normalizedBrand.replace(/[aeiou]/g, '')
+      ];
+      
+      brandVariations.forEach(variation => {
+        if (html.toLowerCase().includes(`logo-${variation}`)) score += 3;
+        if (html.toLowerCase().includes(`${variation}-logo`)) score += 3;
+        if (html.toLowerCase().includes(`marca-${variation}`)) score += 3;
+        if (html.toLowerCase().includes(`${variation}-oficial`)) score += 5;
+        if (html.toLowerCase().includes(`oficial-${variation}`)) score += 5;
+      });
+      
+      // Bônus para marcas conhecidas
+      if (knownBrands.some(kb => 
+        kb.toLowerCase() === lowerBrand || 
+        kb.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') === normalizedBrand
+      )) {
+        score += 10;
+      }
+      
+      return score;
+    }
+
+    // Função para analisar repetições consistentes
+    function analyzeConsistentPatterns(text: string, domain: string): string[] {
+      const words = text.split(/\s+/);
+      const wordCounts = new Map<string, number>();
+      const domainParts = cleanDomainForBrandAnalysis(domain);
+      
+      // Contar ocorrências de cada palavra
+      words.forEach(word => {
+        word = word.replace(/[^a-zA-Z0-9]/g, '');
+        if (word.length > 2) {
+          wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+        }
+      });
+
+      // Filtrar e pontuar palavras
+      return Array.from(wordCounts.entries())
+        .filter(([word, count]) => {
+          const isDomainWord = domainParts.some(part => 
+            part.toLowerCase() === word.toLowerCase()
+          );
+          return (count >= 3 && word.length > 3) || (count >= 2 && isDomainWord);
+        })
+        .map(([word]) => word);
+    }
+
+    // Função para extrair palavras que aparecem em posição de marca
+    function extractBrandPositionWords(html: string): string[] {
+      const brandWords: string[] = [];
+      
+      // Buscar em títulos de produtos
+      const productTitles = html.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/gi) || [];
+      productTitles.forEach(title => {
+        const words = title.replace(/<[^>]+>/g, '').trim().split(/\s+/);
+        if (words.length > 0) {
+          // Primeira palavra do título frequentemente é a marca
+          const firstWord = words[0].replace(/[^a-zA-Z0-9]/g, '');
+          if (firstWord.length > 2) {
+            brandWords.push(firstWord);
+          }
+        }
+      });
+
+      return brandWords;
+    }
+
+    // Função para detectar padrões de nomenclatura de produtos
+    function detectProductNamingPatterns(html: string): string[] {
+      const patterns: string[] = [];
+      const productTitles = html.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/gi) || [];
+      
+      // Mapa para contar prefixos comuns
+      const prefixCount = new Map<string, number>();
+      
+      productTitles.forEach(title => {
+        const cleanTitle = title.replace(/<[^>]+>/g, '').trim();
+        // Procurar por padrões como "Marca Produto" ou "Marca - Produto"
+        const parts = cleanTitle.split(/[\s-]+/);
+        if (parts.length > 1) {
+          const potentialBrand = parts[0].replace(/[^a-zA-Z0-9]/g, '');
+          if (potentialBrand.length > 2) {
+            prefixCount.set(potentialBrand, (prefixCount.get(potentialBrand) || 0) + 1);
+          }
+        }
+      });
+
+      // Se um prefixo aparece em múltiplos títulos, provavelmente é a marca
+      patterns.push(...Array.from(prefixCount.entries())
+        .filter(([_, count]) => count >= 2)
+        .map(([prefix]) => prefix));
+
+      return patterns;
+    }
+
     // Buscar por padrões de nome/marca
     const namePatterns = [
       /name:\s*["']([^"']+)["']/gi,
@@ -190,18 +510,62 @@ async function analyzeHtmlContent(url: string): Promise<{
       /loja=["']([^"']+)["']/gi
     ];
 
-    // Lista de marcas conhecidas para buscar
-    const knownBrands = [
-      'netshoes', 'nike', 'adidas', 'puma', 'under armour', 'reebok',
-      'mizuno', 'asics', 'new balance', 'olympikus', 'fila',
-      'growth', 'max titanium', 'integral medica', 'probiotica',
-      'black skull', 'darkness', 'optimum nutrition',
-      'amazon', 'mercado livre', 'americanas', 'magalu', 'magazine luiza',
-      'shopee', 'aliexpress', 'shein', 'casas bahia', 'submarino',
-      'centauro', 'decathlon', 'dafiti'
-    ];
+    // Adicionar busca em títulos (h1, h2, h3)
+    const headingMatches = html.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/gi);
+    if (headingMatches) {
+      headingMatches.forEach(match => {
+        const headingText = match.replace(/<[^>]+>/g, '').trim();
+        // Extrair nomes de marcas conhecidas dos títulos
+        knownBrands.forEach(brand => {
+          if (headingText.toLowerCase().includes(brand.toLowerCase())) {
+            potentialBrands.push(brand);
+          }
+        });
+      });
+    }
 
-    // Buscar por padrões de nome/marca no HTML
+    // Adicionar busca em imagens (src e alt)
+    const imageMatches = html.match(/<img[^>]+>/gi);
+    if (imageMatches) {
+      imageMatches.forEach(match => {
+        // Buscar no src da imagem
+        const srcMatch = match.match(/src=["']([^"']+)["']/i);
+        if (srcMatch) {
+          const srcPath = srcMatch[1].toLowerCase();
+          knownBrands.forEach(brand => {
+            if (srcPath.includes(brand.toLowerCase().replace(/\s+/g, '-')) ||
+                srcPath.includes(brand.toLowerCase().replace(/\s+/g, '_')) ||
+                srcPath.includes(brand.toLowerCase().replace(/\s+/g, ''))) {
+              potentialBrands.push(brand);
+            }
+          });
+        }
+
+        // Buscar no alt da imagem
+        const altMatch = match.match(/alt=["']([^"']+)["']/i);
+        if (altMatch) {
+          const altText = altMatch[1].toLowerCase();
+          knownBrands.forEach(brand => {
+            if (altText.includes(brand.toLowerCase())) {
+              potentialBrands.push(brand);
+            }
+          });
+        }
+      });
+    }
+
+    // Aplicar as novas análises inteligentes
+    const domainName = url.replace(/^https?:\/\//, '').split('/')[0];
+    const brandPositionWords = extractBrandPositionWords(html);
+    const consistentPatterns = analyzeConsistentPatterns(textContent, domainName);
+    const productPatterns = detectProductNamingPatterns(html);
+
+    // Adicionar resultados das novas análises
+    potentialBrands.push(...brandPositionWords);
+    potentialBrands.push(...consistentPatterns);
+    potentialBrands.push(...productPatterns);
+
+    // Buscar por padrões de nome/marca no HTML (mantido do código original)
     for (const pattern of namePatterns) {
       const matches = html.matchAll(pattern);
       for (const match of matches) {
@@ -211,7 +575,7 @@ async function analyzeHtmlContent(url: string): Promise<{
       }
     }
 
-    // Buscar por marcas conhecidas no texto completo
+    // Buscar por marcas conhecidas no texto completo (mantido do código original)
     for (const brand of knownBrands) {
       const regex = new RegExp(brand, 'gi');
       if (regex.test(textContent) && !potentialBrands.includes(brand)) {
@@ -219,8 +583,8 @@ async function analyzeHtmlContent(url: string): Promise<{
       }
     }
 
-    // Buscar em classes e IDs que podem conter nomes de marcas
-    const classAndIdPattern = /(?:class|id)=["']([^"']*(?:brand|store|shop|marca|loja)[^"']*)["']/gi;
+    // Buscar em classes e IDs (mantido do código original)
+    const classAndIdPattern = /(?:class|id)=["']([^"']*(?:brand|store|shop|marca|loja|logo)[^"']*)["']/gi;
     const classAndIdMatches = html.matchAll(classAndIdPattern);
     for (const match of classAndIdMatches) {
       if (match[1]) {
@@ -233,6 +597,53 @@ async function analyzeHtmlContent(url: string): Promise<{
       }
     }
 
+    // Remover duplicatas e filtrar marcas muito curtas
+    const uniqueBrands = [...new Set(potentialBrands)]
+      .filter(brand => {
+        // Filtrar marcas muito curtas ou que são apenas o domínio completo
+        if (brand.length <= 3) return false;
+        if (brand.toLowerCase() === url.toLowerCase()) return false;
+        if (brand.toLowerCase() === domainName.toLowerCase()) return false;
+        
+        // Filtrar palavras comuns que não são marcas
+        const commonWords = ['shop', 'store', 'loja', 'site', 'app', 'online', 'oficial', 'original'];
+        if (commonWords.includes(brand.toLowerCase())) return false;
+        
+        // Manter palavras que aparecem frequentemente em títulos de produtos
+        const score = scorePotentialBrand(brand, html, domainName);
+        return score >= 10; // Exigir pontuação mínima para ser considerada marca
+      })
+      .sort((a, b) => {
+        // Ordenar por pontuação
+        const scoreA = scorePotentialBrand(a, html, domainName);
+        const scoreB = scorePotentialBrand(b, html, domainName);
+        return scoreB - scoreA;
+      });
+
+    // Se não encontrou nenhuma marca mas tem padrões claros nos títulos, usar o mais frequente
+    if (uniqueBrands.length === 0) {
+      const productTitles = html.match(/<h[1-3][^>]*>([^<]+)<\/h[1-3]>/gi) || [];
+      const prefixCount = new Map<string, number>();
+      const commonWords = ['shop', 'store', 'loja', 'site', 'app', 'online', 'oficial', 'original'];
+      
+      productTitles.forEach(title => {
+        const cleanTitle = title.replace(/<[^>]+>/g, '').trim();
+        const firstWord = cleanTitle.split(/[\s-]+/)[0];
+        if (firstWord && firstWord.length > 3) {
+          prefixCount.set(firstWord, (prefixCount.get(firstWord) || 0) + 1);
+        }
+      });
+
+      // Se encontrar um prefixo que aparece em pelo menos 3 títulos
+      const mostCommonPrefix = Array.from(prefixCount.entries())
+        .filter(([word]) => !commonWords.includes(word.toLowerCase()))
+        .sort(([,a], [,b]) => b - a)[0];
+        
+      if (mostCommonPrefix && mostCommonPrefix[1] >= 3) {
+        uniqueBrands.push(mostCommonPrefix[0]);
+      }
+    }
+
     return {
       title,
       description,
@@ -242,7 +653,7 @@ async function analyzeHtmlContent(url: string): Promise<{
       brandImages: hasBrandImages,
       securityIcons: hasSecurityIcons,
       fullContent: textContent,
-      potentialBrands: potentialBrands.filter(brand => brand.length > 3)
+      potentialBrands: uniqueBrands
     };
   } catch (error) {
     console.error('Erro ao analisar HTML:', error);
@@ -260,81 +671,243 @@ async function analyzeHtmlContent(url: string): Promise<{
   }
 }
 
+function getSectorContext(category: string): any {
+  const contexts: {[key: string]: any} = {
+    'Health & Supplements': {
+      terms: ['adulterated supplements', 'health registrations', 'sanitary certifications'],
+      impact: 'risk to consumer health and safety',
+      urgency: 'CRITICAL'
+    },
+    'Beauty & Personal Care': {
+      terms: ['counterfeit cosmetics', 'regulatory compliance', 'safety certifications'],
+      impact: 'risk of adverse reactions and health complications',
+      urgency: 'HIGH'
+    },
+    'Fashion': {
+      terms: ['counterfeit products', 'copyright infringement', 'intellectual property'],
+      impact: 'financial and reputational damage',
+      urgency: 'MEDIUM'
+    },
+    'E-commerce': {
+      terms: ['payment data', 'credentials', 'personal information'],
+      impact: 'theft of financial data',
+      urgency: 'HIGH'
+    },
+    'Financial Services': {
+      terms: ['banking credentials', 'financial data', 'critical access'],
+      impact: 'direct financial losses',
+      urgency: 'CRITICAL'
+    },
+    'Auctions & Auctioneers': {
+      terms: ['forged documents', 'fraudulent bids', 'identity theft'],
+      impact: 'auction process fraud',
+      urgency: 'HIGH'
+    }
+  };
+  return contexts[category] || {
+    terms: ['sensitive data', 'personal information', 'credentials'],
+    impact: 'data compromise',
+    urgency: 'HIGH'
+  };
+}
+
 function generateTakedownText(data: any) {
   const brand = data.detected_brand?.name || 'Unknown Brand';
-  const category = data.brand_category || 'Unknown Category';
+  const context = getSectorContext(data.brand_category || 'Unknown Category');
   const indicators = data.phishing_indicators || [];
-  const registrationDate = data.whois_info?.creation_date || 'N/A';
-
-  // Função para gerar descrição contextualizada baseada na categoria
-  function getCategoryContext(category: string, brand: string): string {
-    switch (category.toLowerCase()) {
-      case 'banking':
-      case 'banks & financial':
-        return `This fraudulent website is impersonating ${brand} to steal sensitive financial information from customers. The phishing site attempts to trick users into providing their banking credentials, potentially leading to financial losses and identity theft.`;
-      case 'airlines':
-        return `This fraudulent website is impersonating ${brand} airlines, attempting to steal customers' personal information and payment details. The site mimics legitimate airline booking processes to deceive users seeking to purchase tickets or manage their miles/rewards.`;
-      case 'e-commerce':
-        return `This fraudulent website is impersonating ${brand}'s e-commerce platform, putting online shoppers at risk. The site attempts to steal payment information and personal data from customers who believe they are making legitimate purchases.`;
-      case 'social media':
-        return `This fraudulent website is impersonating ${brand}'s platform, attempting to steal users' login credentials and personal information. The site poses a significant risk to users' privacy and could lead to account compromise and identity theft.`;
-      case 'streaming':
-        return `This fraudulent website is impersonating ${brand}'s streaming service, attempting to steal users' subscription credentials and payment information. The site tricks users into providing their account details, potentially leading to unauthorized charges and account theft.`;
-      case 'delivery':
-        return `This fraudulent website is impersonating ${brand}'s delivery service, putting both customers and restaurants at risk. The site attempts to steal payment information and personal data while posing as a legitimate food delivery platform.`;
-      case 'telecommunications':
-        return `This fraudulent website is impersonating ${brand}'s telecommunications services, attempting to steal customers' account credentials and payment information. The site poses as a legitimate service provider to deceive users managing their mobile or internet services.`;
-      default:
-        return `This fraudulent website is impersonating ${brand} and was created with the intention of stealing sensitive information from their customers.`;
-    }
+  
+  // Determine urgency based on multiple factors
+  let urgencyLevel = context.urgency;
+  if (indicators.length > 5 || data.brand_category === 'Financial Services') {
+    urgencyLevel = 'CRITICAL';
   }
 
-  // Função para descrever os indicadores de forma mais natural
-  function describeIndicators(indicators: string[]): string {
-    if (!indicators.length) return '';
-
-    const descriptions = [];
-    
-    // Agrupa indicadores similares
-    if (indicators.some(i => i.includes('login') || i.includes('senha'))) {
-      descriptions.push('implements fake login forms to capture user credentials');
-    }
-    if (indicators.some(i => i.includes('marca') || i.includes('logo'))) {
-      descriptions.push('unauthorized use of brand logos and trademarks');
-    }
-    if (indicators.some(i => i.includes('segurança'))) {
-      descriptions.push('displays fake security seals to appear legitimate');
-    }
-    if (indicators.some(i => i.includes('recentemente'))) {
-      descriptions.push('was registered recently, typical of phishing campaigns');
-    }
-
-    return descriptions.join(', ');
+  // Build evidence-based risk description
+  const risks = [];
+  if (indicators.some((i: string) => i.includes('login') || i.includes('senha'))) {
+    risks.push('credential theft attempt');
+  }
+  if (indicators.some((i: string) => i.includes('marca') || i.includes('logo'))) {
+    risks.push('brand impersonation');
+  }
+  if (indicators.some((i: string) => i.includes('payment') || i.includes('cartão'))) {
+    risks.push('payment data collection');
   }
 
-  const categoryContext = getCategoryContext(category, brand);
-  const indicatorDescription = describeIndicators(indicators);
+  // Determine template type based on host info
+  const isHostingProvider = data.ip_info?.company?.name?.toLowerCase().includes('hosting') || false;
+  const isCloudProvider = data.ip_info?.company?.name?.toLowerCase().match(/(aws|azure|google|cloud)/i) !== null;
+  
+  // Build the base information block
+  const baseInfo = `Domain: ${data.domain}
+IP Address: ${data.ip || 'N/A'}`;
 
-  return `Subject: [URGENT] Phishing Site Takedown Request - ${data.domain}
+  // Build company description based on brand and category
+  let companyDescription = '';
+  switch (data.brand_category) {
+    case 'Supplements':
+      companyDescription = `${brand}, one of Brazil's leading sports nutrition and supplement companies`;
+      break;
+    case 'Retail':
+      companyDescription = `${brand}, one of the largest retail chains in Brazil`;
+      break;
+    case 'Financial Services':
+      companyDescription = `${brand}, a major Brazilian financial institution`;
+      break;
+    case 'E-commerce':
+      companyDescription = `${brand}, a prominent Brazilian e-commerce platform`;
+      break;
+    case 'Insurance':
+      companyDescription = `${brand}, a leading insurance company in Brazil`;
+      break;
+    case 'Fintech':
+      companyDescription = `${brand}, an innovative Brazilian digital financial services company`;
+      break;
+    case 'Beauty & Cosmetics':
+      companyDescription = `${brand}, a renowned Brazilian beauty and cosmetics company`;
+      break;
+    case 'Fashion':
+      companyDescription = `${brand}, a major Brazilian fashion retailer`;
+      break;
+    case 'Pharmacy':
+      companyDescription = `${brand}, one of Brazil's largest pharmacy retail chains`;
+      break;
+    case 'Airlines':
+      companyDescription = `${brand}, a major Brazilian airline company`;
+      break;
+    case 'Telecom':
+      companyDescription = `${brand}, a leading telecommunications provider in Brazil`;
+      break;
+    case 'Streaming':
+      companyDescription = `${brand}, a popular streaming service provider`;
+      break;
+    case 'Food Delivery':
+      companyDescription = `${brand}, a major food delivery platform in Brazil`;
+      break;
+    case 'Education':
+      companyDescription = `${brand}, a prominent Brazilian educational institution`;
+      break;
+    case 'Gaming':
+      companyDescription = `${brand}, a major gaming and entertainment platform`;
+      break;
+    case 'Automotive':
+      companyDescription = `${brand}, a leading automotive marketplace in Brazil`;
+      break;
+    case 'Real Estate':
+      companyDescription = `${brand}, a prominent real estate platform in Brazil`;
+      break;
+    case 'Travel':
+      companyDescription = `${brand}, a major travel and hospitality company`;
+      break;
+    case 'Digital Payments':
+      companyDescription = `${brand}, a leading digital payment solutions provider in Brazil`;
+      break;
+    case 'Cryptocurrency':
+      companyDescription = `${brand}, a prominent cryptocurrency exchange platform in Brazil`;
+      break;
+    case 'Government Services':
+      companyDescription = `${brand}, an essential Brazilian government service platform`;
+      break;
+    case 'Healthcare':
+      companyDescription = `${brand}, a major healthcare services provider in Brazil`;
+      break;
+    case 'Sports Betting':
+      companyDescription = `${brand}, a regulated sports betting platform in Brazil`;
+      break;
+    case 'Logistics':
+      companyDescription = `${brand}, a leading logistics and delivery services company in Brazil`;
+      break;
+    case 'Job Portals':
+      companyDescription = `${brand}, one of Brazil's largest employment and recruitment platforms`;
+      break;
+    case 'Cloud Services':
+      companyDescription = `${brand}, a major cloud computing and services provider`;
+      break;
+    case 'Social Networks':
+      companyDescription = `${brand}, a popular social networking platform`;
+      break;
+    case 'Entertainment':
+      companyDescription = `${brand}, a major entertainment and media company in Brazil`;
+      break;
+    case 'Marketplaces':
+      companyDescription = `${brand}, a leading peer-to-peer marketplace platform in Brazil`;
+      break;
+    case 'Investment Platforms':
+      companyDescription = `${brand}, a prominent investment and trading platform in Brazil`;
+      break;
+    case 'Utilities':
+      companyDescription = `${brand}, an essential utility services provider in Brazil`;
+      break;
+    case 'Dating Apps':
+      companyDescription = `${brand}, a popular online dating platform in Brazil`;
+      break;
+    case 'NFT & Digital Art':
+      companyDescription = `${brand}, a leading NFT and digital art marketplace`;
+      break;
+    case 'Loyalty Programs':
+      companyDescription = `${brand}, a major customer loyalty and rewards program in Brazil`;
+      break;
+    case 'Digital Wallets':
+      companyDescription = `${brand}, a prominent digital wallet and payment services provider in Brazil`;
+      break;
+    case 'Classified Ads':
+      companyDescription = `${brand}, one of Brazil's largest classified advertisements platforms`;
+      break;
+    case 'News & Media':
+      companyDescription = `${brand}, a major Brazilian news and media organization`;
+      break;
+    case 'Professional Services':
+      companyDescription = `${brand}, a leading professional services platform in Brazil`;
+      break;
+    default:
+      companyDescription = brand;
+  }
+
+  // Build the evidence block
+  const evidenceBlock = `${risks.length > 0 ? `\nThis fraudulent website has been confirmed to engage in ${risks.join(', ')}.` : ''}${indicators.length > 3 ? `\n\nOur analysis identified multiple high-risk indicators including suspicious authentication forms and unauthorized brand assets.` : ''}${data.whois_info?.creation_date !== 'N/A' ? `\nThe domain's recent registration (${data.whois_info.creation_date}) suggests this is part of an active phishing campaign.` : ''}`;
+
+  // Technical template for hosting/cloud providers
+  if (isHostingProvider || isCloudProvider) {
+    return `Subject: [${urgencyLevel}] Phishing Site Takedown Request - ${data.domain}
 
 Dear Abuse Team,
 
-We have identified a sophisticated phishing operation targeting ${brand} customers through the following domain:
+We detected a phishing website hosted at:
 
-Domain: ${data.domain}
-IP Address: ${data.ip}
+${baseInfo}
 
-${categoryContext}
+This fake website was created to attack ${companyDescription}. The organization's legitimate website is: ${data.detected_brand?.official_url || '[Official URL]'}.
 
-Our security analysis has revealed that this fraudulent site ${indicatorDescription}. This poses an immediate threat to unsuspecting users who may fall victim to this scam.
+${evidenceBlock}
 
-The timing and nature of this attack is particularly concerning, as it coincides with ${brand}'s legitimate services and exploits their trusted reputation in the ${category} sector.
+Besides that, we have found issues where the page is activated and deactivated by the fraudster according to their configuration, so even though it may seem inaccessible, the phishing page can be reactivated at any time.
 
-We urgently request your immediate action to take down this malicious content and protect potential victims from this fraudulent scheme.
+That is why we request your action to help us deactivate the content available not only on the reported URL, but also in the whole server related to the domain.
 
-Your swift response in this matter is crucial to prevent further compromise of user data and maintain the integrity of online services.
+We kindly ask your cooperation, according to your policies, to cease this activity and shut down the phishing page as soon as possible.
 
-Thank you for your immediate attention to this critical security threat.
+Thanks in advance. We would also appreciate it if you could provide a confirmation that this message has been received and an estimate of the time to shutdown.
+
+Best regards,
+Anti-Phishing Team`;
+  }
+  
+  // General template for other providers
+  return `Subject: [${urgencyLevel}] Phishing Site Takedown Request - ${data.domain}
+
+Dear Sir/Madam,
+
+We detected a scam website hosted at your network:
+
+${baseInfo}
+
+This fake website was created to attack ${companyDescription}. The organization's legitimate website is: ${data.detected_brand?.official_url || '[Official URL]'}.
+
+${evidenceBlock}
+
+We kindly ask your cooperation, according to your policies, to cease this activity and shut down the malicious/fake page as soon as possible. While this malicious page remains available, more users can be victims of fraud.
+
+Thank you in advance for your support. We look forward to your response. Have a great day!
 
 Best regards,
 Anti-Phishing Team`;

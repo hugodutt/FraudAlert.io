@@ -1,44 +1,80 @@
-# Takedown Research
+# T.R.A.C.E.
+## Takedown Request Automated Content Engine
 
-Uma ferramenta profissional para análise de domínios suspeitos e geração de pedidos de takedown.
+T.R.A.C.E. is an automated system for generating professional and detailed takedown requests for phishing and fraudulent websites. The system is designed to provide accurate, context-aware descriptions of affected companies and their services.
 
-## Funcionalidades
+### Features
 
-- Análise detalhada de domínios suspeitos
-- Identificação de indicadores de phishing
-- Avaliação de risco e impacto
-- Geração automática de pedidos de takedown
-- Interface moderna e intuitiva
+- Automated generation of takedown request emails
+- Support for 38+ business categories
+- Context-aware company descriptions
+- Multiple email templates based on recipient type
+- Evidence-based risk assessment
+- Detailed technical information formatting
 
-## Tecnologias
+### Supported Business Categories
 
-- Next.js 14
-- React
-- TypeScript
-- Tailwind CSS
-- Shadcn/ui
+1. Financial Services
+   - Banks
+   - Investment Platforms
+   - Digital Wallets
+   - Cryptocurrency Exchanges
 
-## Como executar
+2. Retail & Commerce
+   - E-commerce Platforms
+   - Retail Chains
+   - Marketplaces
+   - Classified Ads
 
-1. Clone o repositório
-2. Instale as dependências:
-```bash
-npm install
+3. Health & Wellness
+   - Healthcare Services
+   - Pharmacy Chains
+   - Supplements Companies
+
+4. Digital Services
+   - Cloud Services
+   - Digital Payments
+   - Streaming Platforms
+   - Social Networks
+
+5. Travel & Transportation
+   - Airlines
+   - Travel Companies
+   - Logistics Services
+
+And many more...
+
+### Usage
+
+```typescript
+const takedownText = generateTakedownText({
+  domain: "suspicious-site.com",
+  ip: "192.0.2.1",
+  detected_brand: {
+    name: "Example Brand",
+    category: "E-commerce"
+  },
+  // ... additional parameters
+});
 ```
-3. Execute o servidor de desenvolvimento:
-```bash
-npm run dev
+
+### Project Structure
+
 ```
-4. Abra [http://localhost:3000](http://localhost:3000) no seu navegador
+src/
+├── generators/
+│   ├── takedown.ts        # Main takedown text generator
+│   └── templates/         # Email templates
+├── types/
+│   └── index.ts          # Type definitions
+└── utils/
+    └── categories.ts     # Business categories and descriptions
+```
 
-## Ambiente de Produção
+### Contributing
 
-O projeto está configurado para deploy na Vercel. Para fazer o deploy:
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Faça o push do código para o GitHub
-2. Importe o projeto na Vercel
-3. A Vercel irá fazer o build e deploy automaticamente
+### License
 
-## Licença
-
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
